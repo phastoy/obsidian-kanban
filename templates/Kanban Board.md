@@ -212,8 +212,16 @@ function commitMove(srcPath, dir) {
 
 // ── Render a single card ───────────────────────────────────────────────────────
 function renderCard(cardList, task, idx, colLength) {
-  const now  = dv.luxon.DateTime.now();
-  const card = cardList.createEl("div", { cls: "kb-card" });
+  const now     = dv.luxon.DateTime.now();
+  const dueThisWeek = task.due && task.due >= now.startOf("day") && task.due <= now.endOf("week");
+  const isUrgent    = dueThisWeek && task.priority >= 4;
+  const isBlocked   = task.status === "blocked";
+
+  let cls = "kb-card";
+  if (isUrgent)  cls += " kb-card-urgent";
+  if (isBlocked) cls += " kb-card-blocked";
+
+  const card = cardList.createEl("div", { cls });
   card.draggable = STATE.view === "sequential";
   card.style.borderLeftColor = STATUS_COLOR[task.status] || "#9E9E9E";
 

@@ -1,3 +1,20 @@
+/* ── Glow animations ─────────────────────────────────────────────────────── */
+@keyframes kb-glow-urgent {
+  0%, 100% { box-shadow: 0 0 6px 2px rgba(255, 230, 100, 0.4); }
+  50%       { box-shadow: 0 0 16px 6px rgba(255, 220, 60, 0.75); }
+}
+@keyframes kb-glow-blocked {
+  0%, 100% { box-shadow: 0 0 6px 2px rgba(244, 67, 54, 0.25); }
+  50%       { box-shadow: 0 0 16px 6px rgba(244, 67, 54, 0.55); }
+}
+.kb-card-urgent {
+  background: #fffde7 !important;
+  animation: kb-glow-urgent 2.4s ease-in-out infinite;
+}
+.kb-card-blocked {
+  animation: kb-glow-blocked 2.8s ease-in-out infinite;
+}
+
 /* ── Toolbar ──────────────────────────────────────────────────────────────── */
 .kb-toolbar {
   display: flex;
