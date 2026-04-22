@@ -213,13 +213,13 @@ function commitMove(srcPath, dir) {
 // ── Render a single card ───────────────────────────────────────────────────────
 function renderCard(cardList, task, idx, colLength) {
   const now     = dv.luxon.DateTime.now();
-  const dueThisWeek = task.due && task.due >= now.startOf("day") && task.due <= now.endOf("week");
-  const isUrgent    = dueThisWeek && task.priority >= 4;
   const isBlocked   = task.status === "blocked";
+  const dueThisWeek = task.due && task.due >= now.startOf("day") && task.due <= now.endOf("week");
+  const isUrgent    = !isBlocked && dueThisWeek && task.priority >= 4;
 
   let cls = "kb-card";
-  if (isUrgent)  cls += " kb-card-urgent";
   if (isBlocked) cls += " kb-card-blocked";
+  else if (isUrgent) cls += " kb-card-urgent";
 
   const card = cardList.createEl("div", { cls });
   card.draggable = STATE.view === "sequential";
