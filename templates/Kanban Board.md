@@ -31,6 +31,22 @@ const DOMAINS = [
 const P_LABEL = ["", "Lowest", "Low", "Medium", "High", "Highest"];
 const P_COLOR = ["", "#89BDF4", "#89BDF4", "#FFE88B", "#FF7881", "#FF7881"];
 
+// ── Date filter options ───────────────────────────────────────────────────────
+const CREATED_OPTIONS = [
+  { id: "all", label: "All"  },
+  { id: "1m",  label: "1M"   },
+  { id: "3m",  label: "3M"   },
+  { id: "6m",  label: "6M"   },
+];
+const DUE_OPTIONS = [
+  { id: "all",           label: "All"      },
+  { id: "overdue",       label: "Overdue"  },
+  { id: "this-month",    label: "Month"    },
+  { id: "this-quarter",  label: "Quarter"  },
+  { id: "this-semester", label: "Semester" },
+  { id: "this-year",     label: "Year"     },
+];
+
 // ── Derived lookup ────────────────────────────────────────────────────────────
 const STATUS_COLOR = Object.fromEntries(STATUSES.map(s => [s.id, s.color]));
 const DOMAIN_IDS   = DOMAINS.map(d => d.id);
@@ -38,7 +54,13 @@ const DOMAIN_IDS   = DOMAINS.map(d => d.id);
 // ── Persistent state ───────────────────────────────────────────────────────────
 const STATE_KEY = "kb_" + dv.currentFilePath.replace(/[^\w]/g, "_");
 if (!window[STATE_KEY]) {
-  window[STATE_KEY] = { ov: {}, orderOv: {}, view: "sequential", tags: [] };
+  window[STATE_KEY] = {
+    ov: {}, orderOv: {},
+    view: "sequential",
+    tags: [],
+    createdFilter: "all",
+    dueFilter: "all",
+  };
 }
 const STATE = window[STATE_KEY];
 
@@ -76,8 +98,7 @@ async function patchFrontmatter(path, patches) {
 // ── Task builder ───────────────────────────────────────────────────────────────
 function buildTasks() {
   return pages.map((p, i) => {
-    // Normalise tags: read from file.tags (picks up frontmatter + inline), strip #
-    const allTags = (p.file.tags || []).map(t => String(t).replace(/^#/, "").toLowerCase());
+    const allTags    = (p.file.tags || []).map(t => String(t).replace(/^#/, "").toLowerCase());
     const domainTags = allTags.filter(t => DOMAIN_IDS.includes(t));
     return {
       path:     p.file.path,
@@ -86,6 +107,8 @@ function buildTasks() {
       priority: typeof p.priority === "number" ? p.priority : null,
       order:    STATE.orderOv[p.file.path] ?? (typeof p.order === "number" ? p.order : i),
       domainTags,
+      ctime:    p.file.ctime ?? null,   // Luxon DateTime from DataviewJS
+      due:      p.due       ?? null,    // Luxon DateTime if ISO date in frontmatter
     };
   });
 }
@@ -94,10 +117,50 @@ function byOrder(arr) {
   return [...arr].sort((a, b) => a.order - b.order);
 }
 
-// Filter tasks by selected domain tags (empty = show all)
-function applyTagFilter(tasks) {
-  if (!STATE.tags || STATE.tags.length === 0) return tasks;
-  return tasks.filter(t => STATE.tags.some(tag => t.domainTags.includes(tag)));
+// ── Combined filter ────────────────────────────────────────────────────────────
+function applyFilters(tasks) {
+  const now = dv.luxon.DateTime.now();
+
+  return tasks.filter(task => {
+    // Tag filter
+    if (STATE.tags.length > 0 && !STATE.tags.some(tag => task.domainTags.includes(tag))) return false;
+
+    // Created filter
+    if (STATE.createdFilter !== "all") {
+      const months = { "1m": 1, "3m": 3, "6m": 6 }[STATE.createdFilter];
+      if (months && task.ctime) {
+        if (task.ctime < now.minus({ months })) return false;
+      }
+    }
+
+    // Due date filter
+    if (STATE.dueFilter !== "all") {
+      if (!task.due) return false; // no due date → exclude from any due filter
+      const due = task.due;
+      switch (STATE.dueFilter) {
+        case "overdue":
+          if (due >= now.startOf("day")) return false;
+          break;
+        case "this-month":
+          if (due.year !== now.year || due.month !== now.month) return false;
+          break;
+        case "this-quarter":
+          if (due.year !== now.year || due.quarter !== now.quarter) return false;
+          break;
+        case "this-semester": {
+          const nowSem = now.month   <= 6 ? 1 : 2;
+          const dueSem = due.month   <= 6 ? 1 : 2;
+          if (due.year !== now.year || dueSem !== nowSem) return false;
+          break;
+        }
+        case "this-year":
+          if (due.year !== now.year) return false;
+          break;
+      }
+    }
+
+    return true;
+  });
 }
 
 // ── Drop UI ────────────────────────────────────────────────────────────────────
@@ -107,7 +170,7 @@ function clearDropUI() {
 
 // ── Commit: drag to column ─────────────────────────────────────────────────────
 function commitColumnChange(srcPath, targetColId) {
-  if (STATE.view !== "sequential") return; // domain view is read-only for drag
+  if (STATE.view !== "sequential") return;
   const tasks = buildTasks();
   const src = tasks.find(t => t.path === srcPath);
   if (!src || src.status === targetColId) return;
@@ -121,14 +184,14 @@ function commitColumnChange(srcPath, targetColId) {
   patchFrontmatter(srcPath, { status: targetColId, order: newOrder }).catch(console.error);
 }
 
-// ── Commit: move card up/down within column ────────────────────────────────────
+// ── Commit: move card up/down ──────────────────────────────────────────────────
 function commitMove(srcPath, dir) {
   const tasks = buildTasks();
   const src = tasks.find(t => t.path === srcPath);
   if (!src) return;
 
-  const filtered = applyTagFilter(tasks);
-  const groupKey = STATE.view === "sequential" ? src.status : src.domainTags[0];
+  const filtered  = applyFilters(tasks);
+  const groupKey  = STATE.view === "sequential" ? src.status : src.domainTags[0];
   if (!groupKey) return;
 
   const colTasks = byOrder(
@@ -137,7 +200,7 @@ function commitMove(srcPath, dir) {
       : filtered.filter(t => t.domainTags.includes(groupKey))
   );
 
-  const idx = colTasks.findIndex(t => t.path === srcPath);
+  const idx    = colTasks.findIndex(t => t.path === srcPath);
   const newIdx = dir === "up" ? idx - 1 : idx + 1;
   if (newIdx < 0 || newIdx >= colTasks.length) return;
 
@@ -149,6 +212,7 @@ function commitMove(srcPath, dir) {
 
 // ── Render a single card ───────────────────────────────────────────────────────
 function renderCard(cardList, task, idx, colLength) {
+  const now  = dv.luxon.DateTime.now();
   const card = cardList.createEl("div", { cls: "kb-card" });
   card.draggable = STATE.view === "sequential";
   card.style.borderLeftColor = STATUS_COLOR[task.status] || "#9E9E9E";
@@ -179,14 +243,13 @@ function renderCard(cardList, task, idx, colLength) {
   }
 
   const moveWrap = top.createEl("div", { cls: "kb-move" });
-
-  const btnUp = moveWrap.createEl("button", { cls: "kb-move-btn", text: "↑" });
-  btnUp.title = "Move up";
+  const btnUp    = moveWrap.createEl("button", { cls: "kb-move-btn", text: "↑" });
+  btnUp.title    = "Move up";
   if (idx === 0) btnUp.disabled = true;
   btnUp.addEventListener("click", (e) => { e.stopPropagation(); commitMove(task.path, "up"); });
 
-  const btnDown = moveWrap.createEl("button", { cls: "kb-move-btn", text: "↓" });
-  btnDown.title = "Move down";
+  const btnDown  = moveWrap.createEl("button", { cls: "kb-move-btn", text: "↓" });
+  btnDown.title  = "Move down";
   if (idx === colLength - 1) btnDown.disabled = true;
   btnDown.addEventListener("click", (e) => { e.stopPropagation(); commitMove(task.path, "down"); });
 
@@ -197,32 +260,73 @@ function renderCard(cardList, task, idx, colLength) {
     e.preventDefault();
     app.workspace.openLinkText(task.path, dv.currentFilePath, true);
   };
+
+  // Due date display
+  if (task.due) {
+    const isOverdue = task.due < now.startOf("day");
+    const dueEl = card.createEl("div", {
+      cls: "kb-due" + (isOverdue ? " kb-due-overdue" : ""),
+      text: (isOverdue ? "⚠ " : "📅 ") + task.due.toFormat("dd MMM yyyy"),
+    });
+  }
 }
 
 // ── Render ─────────────────────────────────────────────────────────────────────
 function render() {
-  const root = dv.container;
+  const root    = dv.container;
   root.empty();
 
-  const allTasks  = buildTasks();
-  const tasks     = applyTagFilter(allTasks);
-  const columns   = STATE.view === "sequential" ? STATUSES : DOMAINS;
+  const allTasks = buildTasks();
+  const tasks    = applyFilters(allTasks);
+  const columns  = STATE.view === "sequential" ? STATUSES : DOMAINS;
 
-  // ── Toolbar ──────────────────────────────────────────────────────────────
+  // ── Toolbar ───────────────────────────────────────────────────────────────
   const toolbar = root.createEl("div", { cls: "kb-toolbar" });
 
+  // Row 1: view + created + due
+  const row1 = toolbar.createEl("div", { cls: "kb-toolbar-row" });
+
   // View switcher
-  const viewSwitch = toolbar.createEl("div", { cls: "kb-view-switch" });
+  const viewSwitch = row1.createEl("div", { cls: "kb-view-switch" });
   ["sequential", "domain"].forEach(v => {
     const btn = viewSwitch.createEl("button", {
       cls: "kb-view-btn" + (STATE.view === v ? " kb-view-active" : ""),
-      text: v.charAt(0).toUpperCase() + v.slice(1),
+      text: v === "sequential" ? "Sequential" : "Domain",
     });
     btn.addEventListener("click", () => { STATE.view = v; render(); });
   });
 
-  // Tag filter chips
-  const tagFilter = toolbar.createEl("div", { cls: "kb-tag-filter" });
+  row1.createEl("div", { cls: "kb-divider" });
+
+  // Created filter
+  const createdGroup = row1.createEl("div", { cls: "kb-filter-group" });
+  createdGroup.createEl("span", { cls: "kb-filter-label", text: "Created:" });
+  CREATED_OPTIONS.forEach(opt => {
+    const btn = createdGroup.createEl("button", {
+      cls: "kb-date-btn" + (STATE.createdFilter === opt.id ? " kb-date-active" : ""),
+      text: opt.label,
+    });
+    btn.addEventListener("click", () => { STATE.createdFilter = opt.id; render(); });
+  });
+
+  row1.createEl("div", { cls: "kb-divider" });
+
+  // Due filter
+  const dueGroup = row1.createEl("div", { cls: "kb-filter-group" });
+  dueGroup.createEl("span", { cls: "kb-filter-label", text: "Due:" });
+  DUE_OPTIONS.forEach(opt => {
+    const btn = dueGroup.createEl("button", {
+      cls: "kb-date-btn" + (STATE.dueFilter === opt.id ? " kb-date-active" : ""),
+      text: opt.label,
+    });
+    btn.addEventListener("click", () => { STATE.dueFilter = opt.id; render(); });
+  });
+
+  // Row 2: domain tag filter
+  const row2 = toolbar.createEl("div", { cls: "kb-toolbar-row" });
+  row2.createEl("span", { cls: "kb-filter-label", text: "Domain:" });
+  const tagFilter = row2.createEl("div", { cls: "kb-tag-filter" });
+
   const btnAll = tagFilter.createEl("button", {
     cls: "kb-tag-btn" + (STATE.tags.length === 0 ? " kb-tag-active" : ""),
     text: "All",
@@ -257,7 +361,6 @@ function render() {
     const colEl = board.createEl("div", { cls: "kb-col" });
     const hdr   = colEl.createEl("div", { cls: "kb-col-hdr" });
 
-    // Sequential view: colour the column header top border by status
     if (STATE.view === "sequential" && col.color) {
       hdr.style.borderTopColor = col.color;
     }

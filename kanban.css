@@ -1,11 +1,37 @@
 /* ── Toolbar ──────────────────────────────────────────────────────────────── */
 .kb-toolbar {
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  align-items: center;
+  flex-direction: column;
+  gap: 8px;
   margin-bottom: 12px;
 }
+.kb-toolbar-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.kb-filter-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.kb-filter-label {
+  font-size: 0.7em;
+  color: var(--text-faint);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.kb-divider {
+  width: 1px;
+  height: 18px;
+  background: var(--background-modifier-border);
+  flex-shrink: 0;
+}
+
+/* ── View switcher ────────────────────────────────────────────────────────── */
 .kb-view-switch {
   display: flex;
   gap: 4px;
@@ -31,10 +57,35 @@
   background: var(--interactive-accent) !important;
   color: #fff !important;
 }
+
+/* ── Date filter buttons ──────────────────────────────────────────────────── */
+.kb-date-btn {
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 0.75em;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: background 0.1s, color 0.1s, border-color 0.1s;
+  white-space: nowrap;
+}
+.kb-date-btn:hover {
+  border-color: var(--interactive-accent);
+  color: var(--text-normal);
+}
+.kb-date-active {
+  background: var(--interactive-accent) !important;
+  border-color: var(--interactive-accent) !important;
+  color: #fff !important;
+}
+
+/* ── Tag filter chips ─────────────────────────────────────────────────────── */
 .kb-tag-filter {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
+  align-items: center;
 }
 .kb-tag-btn {
   background: var(--background-secondary);
@@ -150,6 +201,16 @@
   background: var(--background-modifier-hover);
   color: var(--text-muted);
   font-family: var(--font-monospace);
+}
+.kb-due {
+  font-size: 0.7em;
+  color: var(--text-faint);
+  margin-top: 4px;
+  font-family: var(--font-monospace);
+}
+.kb-due-overdue {
+  color: #F44336;
+  font-weight: 600;
 }
 .kb-move {
   display: flex;
