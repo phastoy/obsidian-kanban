@@ -1,3 +1,63 @@
+/* ── Toolbar ──────────────────────────────────────────────────────────────── */
+.kb-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.kb-view-switch {
+  display: flex;
+  gap: 4px;
+  background: var(--background-secondary);
+  border-radius: 6px;
+  padding: 3px;
+}
+.kb-view-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 3px 10px;
+  font-size: 0.8em;
+  border-radius: 4px;
+  color: var(--text-muted);
+  transition: background 0.1s, color 0.1s;
+}
+.kb-view-btn:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+.kb-view-active {
+  background: var(--interactive-accent) !important;
+  color: #fff !important;
+}
+.kb-tag-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.kb-tag-btn {
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 20px;
+  padding: 2px 10px;
+  font-size: 0.75em;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: background 0.1s, color 0.1s, border-color 0.1s;
+  font-family: var(--font-monospace);
+}
+.kb-tag-btn:hover {
+  border-color: var(--interactive-accent);
+  color: var(--text-normal);
+}
+.kb-tag-active {
+  background: var(--interactive-accent) !important;
+  border-color: var(--interactive-accent) !important;
+  color: #fff !important;
+}
+
+/* ── Board ────────────────────────────────────────────────────────────────── */
 .kb-board {
   display: flex;
   gap: 14px;
@@ -43,15 +103,16 @@
   gap: 7px;
   min-height: 32px;
 }
+
+/* ── Card ─────────────────────────────────────────────────────────────────── */
 .kb-card {
   background: var(--background-primary);
   border-radius: 6px;
   padding: 8px 10px;
   border: 1px solid var(--background-modifier-border);
+  border-left-width: 3px;
   cursor: grab;
-  transition:
-    box-shadow 0.15s,
-    opacity 0.15s;
+  transition: box-shadow 0.15s, opacity 0.15s;
   user-select: none;
 }
 .kb-card:hover {
@@ -66,7 +127,8 @@
   align-items: center;
   margin-bottom: 5px;
   min-height: 20px;
-  gap: 6px;
+  gap: 5px;
+  flex-wrap: wrap;
 }
 .kb-badge {
   font-size: 0.7em;
@@ -75,6 +137,19 @@
   font-weight: 600;
   color: #fff;
   flex-shrink: 0;
+}
+.kb-tags {
+  display: flex;
+  gap: 3px;
+  flex-wrap: wrap;
+}
+.kb-tag {
+  font-size: 0.65em;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--background-modifier-hover);
+  color: var(--text-muted);
+  font-family: var(--font-monospace);
 }
 .kb-move {
   display: flex;
@@ -92,9 +167,7 @@
   line-height: 1;
   border-radius: 3px;
   opacity: 0.35;
-  transition:
-    opacity 0.1s,
-    background 0.1s;
+  transition: opacity 0.1s, background 0.1s;
 }
 .kb-move-btn:hover:not(:disabled) {
   opacity: 1;
@@ -124,12 +197,12 @@
   pointer-events: none;
 }
 
+/* ── Full-width override ──────────────────────────────────────────────────── */
 .markdown-preview-sizer:has(.kb-board),
 .cm-sizer:has(.kb-board) {
   max-width: 100% !important;
   width: 100% !important;
 }
-
 .markdown-preview-view .block-language-dataviewjs:has(.kb-board),
 .markdown-source-view.mod-cm6 .cm-embed-block-eq:has(.kb-board) {
   max-width: 100% !important;
