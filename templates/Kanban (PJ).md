@@ -67,7 +67,7 @@ if (!window[STATE_KEY]) {
 const STATE = window[STATE_KEY];
 
 // ── Ephemeral drag state ───────────────────────────────────────────────────────
-const DRAG = { path: null };
+const DRAG = { path: null, overEl: null, overBefore: true };
 
 // ── Load pages — only files starting with (PJ) appear as cards ───────────────
 const pages = dv.pages(`"${FOLDER}"`)
@@ -174,8 +174,12 @@ function applyFilters(tasks) {
 function clearDropUI() {
   dv.container.querySelectorAll(".kb-col-over").forEach(el => el.classList.remove("kb-col-over"));
 }
+function clearCardDropUI() {
+  dv.container.querySelectorAll(".kb-drop-above,.kb-drop-below")
+    .forEach(el => { el.classList.remove("kb-drop-above"); el.classList.remove("kb-drop-below"); });
+}
 
-// ── Commit: drag to column ─────────────────────────────────────────────────────
+// ── Commit: drag to column background → land on top ───────────────────────────
 function commitColumnChange(srcPath, targetColId) {
   if (STATE.view !== "sequential") return;
   const tasks = buildTasks();
@@ -183,12 +187,43 @@ function commitColumnChange(srcPath, targetColId) {
   if (!src || src.status === targetColId) return;
 
   const colTasks = byOrder(tasks.filter(t => t.status === targetColId));
-  const newOrder = colTasks.length ? Math.max(...colTasks.map(t => t.order)) + 1 : 0;
+  const newOrder = colTasks.length ? Math.min(...colTasks.map(t => t.order)) - 1 : 0;
 
   STATE.ov[srcPath] = targetColId;
   STATE.orderOv[srcPath] = newOrder;
   render();
   patchFrontmatter(srcPath, { status: targetColId, order: newOrder }).catch(console.error);
+}
+
+// ── Commit: drop onto a specific card (insert above or below) ─────────────────
+function commitInsert(srcPath, targetPath, before) {
+  const tasks  = buildTasks();
+  const src    = tasks.find(t => t.path === srcPath);
+  const target = tasks.find(t => t.path === targetPath);
+  if (!src || !target || srcPath === targetPath) return;
+
+  const colId  = STATE.view === "sequential" ? target.status : (target.domainTags[0] || "");
+  const filtered = applyFilters(tasks);
+  const colTasks = byOrder(
+    STATE.view === "sequential"
+      ? filtered.filter(t => t.status === colId)
+      : filtered.filter(t => t.domainTags.includes(colId))
+  );
+
+  // Update status if cross-column
+  const statusChanged = STATE.view === "sequential" && src.status !== colId;
+  if (statusChanged) STATE.ov[srcPath] = colId;
+
+  // Remove src, insert before/after target
+  const rest      = colTasks.filter(t => t.path !== srcPath);
+  const targetIdx = rest.findIndex(t => t.path === targetPath);
+  const insertIdx = before ? targetIdx : targetIdx + 1;
+  rest.splice(insertIdx, 0, src);
+
+  rest.forEach((t, i) => { STATE.orderOv[t.path] = i; });
+  render();
+  rest.forEach((t, i) => { patchFrontmatter(t.path, { order: i }).catch(console.error); });
+  if (statusChanged) patchFrontmatter(srcPath, { status: colId }).catch(console.error);
 }
 
 // ── Commit: move card up/down ──────────────────────────────────────────────────
@@ -241,7 +276,38 @@ function renderCard(cardList, task, idx, colLength) {
   card.addEventListener("dragend", () => {
     card.classList.remove("kb-dragging");
     clearDropUI();
+    clearCardDropUI();
     DRAG.path = null;
+    DRAG.overEl = null;
+  });
+
+  // ── Card-level drop zone (insert above / below) ────────────────────────
+  card.addEventListener("dragover", (e) => {
+    if (!DRAG.path || DRAG.path === task.path) return;
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = "move";
+    const rect   = card.getBoundingClientRect();
+    const before = e.clientY < rect.top + rect.height / 2;
+    clearCardDropUI();
+    card.classList.add(before ? "kb-drop-above" : "kb-drop-below");
+    DRAG.overEl     = card;
+    DRAG.overPath   = task.path;
+    DRAG.overBefore = before;
+  });
+  card.addEventListener("dragleave", (e) => {
+    if (!card.contains(e.relatedTarget)) {
+      card.classList.remove("kb-drop-above", "kb-drop-below");
+    }
+  });
+  card.addEventListener("drop", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    clearCardDropUI();
+    clearDropUI();
+    const srcPath = DRAG.path;
+    DRAG.path = null;
+    if (srcPath) commitInsert(srcPath, task.path, DRAG.overBefore);
   });
 
   const top = card.createEl("div", { cls: "kb-top" });

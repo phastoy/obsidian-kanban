@@ -1,3 +1,13 @@
+/* ── Drag insert indicators ──────────────────────────────────────────────── */
+.kb-drop-above {
+  border-top: 2px solid var(--interactive-accent) !important;
+  margin-top: -2px;
+}
+.kb-drop-below {
+  border-bottom: 2px solid var(--interactive-accent) !important;
+  margin-bottom: -2px;
+}
+
 /* ── Glow animations ─────────────────────────────────────────────────────── */
 @keyframes kb-glow-urgent {
   0%, 100% { box-shadow: 0 0 6px 2px rgba(255, 230, 100, 0.4); }
