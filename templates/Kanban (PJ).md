@@ -4,7 +4,9 @@ title: Kanban Board
 
 ```dataviewjs
 // ── Config ────────────────────────────────────────────────────────────────────
-const FOLDER = "UPDATE_THIS_TO_YOUR_TASKS_FOLDER_RELATIVE_PATH";
+const FOLDER = "+ Atlas - PROJECTS";
+// Only files tagged #project or #moc appear as cards
+const CARD_TAGS = ["project", "moc"];
 
 // ── Statuses — sequential view columns + card left-border colour ──────────────
 const STATUSES = [
@@ -72,8 +74,10 @@ const STATE = window[STATE_KEY];
 // ── Ephemeral drag state ───────────────────────────────────────────────────────
 const DRAG = { path: null };
 
-// ── Load pages ─────────────────────────────────────────────────────────────────
-const pages = dv.pages(`"${FOLDER}"`).array();
+// ── Load pages — only #project or #moc files appear as cards ─────────────────
+const pages = dv.pages(`"${FOLDER}"`)
+  .where(p => (p.file.tags || []).some(t => CARD_TAGS.includes(t.replace(/^#/, "").toLowerCase())))
+  .array();
 
 // Purge stale overrides once dataview confirms the file was persisted
 for (const p of Object.keys(STATE.ov)) {
