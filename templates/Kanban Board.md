@@ -47,6 +47,11 @@ const DUE_OPTIONS = [
   { id: "this-year",     label: "Year"     },
 ];
 
+// ── Tag aliases — map personal tags to domain ids ─────────────────────────────
+const TAG_ALIASES = {
+  "erik": "boss",
+};
+
 // ── Derived lookup ────────────────────────────────────────────────────────────
 const STATUS_COLOR = Object.fromEntries(STATUSES.map(s => [s.id, s.color]));
 const DOMAIN_IDS   = DOMAINS.map(d => d.id);
@@ -98,7 +103,10 @@ async function patchFrontmatter(path, patches) {
 // ── Task builder ───────────────────────────────────────────────────────────────
 function buildTasks() {
   return pages.map((p, i) => {
-    const allTags    = (p.file.tags || []).map(t => String(t).replace(/^#/, "").toLowerCase());
+    const allTags    = (p.file.tags || []).map(t => {
+      const raw = String(t).replace(/^#/, "").toLowerCase();
+      return TAG_ALIASES[raw] ?? raw;
+    });
     const domainTags = allTags.filter(t => DOMAIN_IDS.includes(t));
     return {
       path:     p.file.path,

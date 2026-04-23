@@ -257,7 +257,6 @@
   cursor: default;
 }
 .kb-title {
-  display: block;
   font-size: 0.88em;
   color: var(--text-normal);
   text-decoration: none;
@@ -280,8 +279,23 @@
 .cm-sizer:has(.kb-board) {
   max-width: 100% !important;
   width: 100% !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
 }
 .markdown-preview-view .block-language-dataviewjs:has(.kb-board),
 .markdown-source-view.mod-cm6 .cm-embed-block-eq:has(.kb-board) {
   max-width: 100% !important;
+  width: 100% !important;
+}
+.view-content:has(.kb-board) .markdown-preview-section,
+.view-content:has(.kb-board) .cm-contentContainer {
+  max-width: 100% !important;
+}
+
+/* ── Title clamp — long descriptions truncate to 3 lines ─────────────────── */
+.kb-title {
+  display: -webkit-box !important;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
