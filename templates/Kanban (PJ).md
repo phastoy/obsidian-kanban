@@ -99,6 +99,25 @@ async function patchFrontmatter(path, patches) {
   await app.vault.modify(file, content.replace(m[0], `---\n${fm}\n---`));
 }
 
+// ── Swap a domain tag in the tags YAML block ───────────────────────────────────
+async function swapDomainTag(path, oldDomain, newDomain) {
+  const file = app.vault.getAbstractFileByPath(path);
+  if (!file) return;
+  let content = await app.vault.read(file);
+  const m = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+  if (!m) return;
+  let fm = m[1];
+  // Replace old domain tag line, or append new one if old not found
+  const oldRe = new RegExp(`^(\\s*-\\s+)${oldDomain}\\s*$`, "m");
+  if (oldRe.test(fm)) {
+    fm = fm.replace(oldRe, `$1${newDomain}`);
+  } else {
+    // Add new domain under tags block
+    fm = fm.replace(/(tags:[\s\S]*?)(\n\w)/, `$1\n  - ${newDomain}$2`);
+  }
+  await app.vault.modify(file, content.replace(m[0], `---\n${fm}\n---`));
+}
+
 // ── Task builder ───────────────────────────────────────────────────────────────
 function buildTasks() {
   return pages.map((p, i) => {
@@ -106,7 +125,11 @@ function buildTasks() {
       const raw = String(t).replace(/^#/, "").toLowerCase();
       return TAG_ALIASES[raw] ?? raw;
     });
-    const domainTags = allTags.filter(t => DOMAIN_IDS.includes(t));
+    let domainTags = allTags.filter(t => DOMAIN_IDS.includes(t));
+    if (STATE.domainOv?.[p.file.path]) {
+      const ov = STATE.domainOv[p.file.path];
+      domainTags = [ov, ...domainTags.filter(t => t !== domainTags[0])];
+    }
     return {
       path:     p.file.path,
       title:    p["project-title"] || p.file.name,
@@ -181,18 +204,29 @@ function clearCardDropUI() {
 
 // ── Commit: drag to column background → land on top ───────────────────────────
 function commitColumnChange(srcPath, targetColId) {
-  if (STATE.view !== "sequential") return;
   const tasks = buildTasks();
-  const src = tasks.find(t => t.path === srcPath);
-  if (!src || src.status === targetColId) return;
+  const src   = tasks.find(t => t.path === srcPath);
+  if (!src) return;
 
-  const colTasks = byOrder(tasks.filter(t => t.status === targetColId));
-  const newOrder = colTasks.length ? Math.min(...colTasks.map(t => t.order)) - 1 : 0;
+  if (STATE.view === "sequential") {
+    if (src.status === targetColId) return;
+    const colTasks = byOrder(tasks.filter(t => t.status === targetColId));
+    const newOrder = colTasks.length ? Math.min(...colTasks.map(t => t.order)) - 1 : 0;
+    STATE.ov[srcPath] = targetColId;
+    STATE.orderOv[srcPath] = newOrder;
+    render();
+    patchFrontmatter(srcPath, { status: targetColId, order: newOrder }).catch(console.error);
 
-  STATE.ov[srcPath] = targetColId;
-  STATE.orderOv[srcPath] = newOrder;
-  render();
-  patchFrontmatter(srcPath, { status: targetColId, order: newOrder }).catch(console.error);
+  } else {
+    // Domain view: swap domain tag
+    const oldDomain = src.domainTags[0];
+    if (!oldDomain || oldDomain === targetColId) return;
+    // Optimistic update in STATE via tag override
+    STATE.domainOv = STATE.domainOv || {};
+    STATE.domainOv[srcPath] = targetColId;
+    render();
+    swapDomainTag(srcPath, oldDomain, targetColId).catch(console.error);
+  }
 }
 
 // ── Commit: drop onto a specific card (insert above or below) ─────────────────
@@ -264,7 +298,7 @@ function renderCard(cardList, task, idx, colLength) {
   else if (isUrgent) cls += " kb-card-urgent";
 
   const card = cardList.createEl("div", { cls });
-  card.draggable = STATE.view === "sequential";
+  card.draggable = true;
   card.style.borderLeftColor = STATUS_COLOR[task.status] || "#9E9E9E";
 
   card.addEventListener("dragstart", (e) => {
@@ -452,7 +486,7 @@ function render() {
     const cardList = colEl.createEl("div", { cls: "kb-cards" });
 
     colEl.addEventListener("dragover", (e) => {
-      if (!DRAG.path || STATE.view !== "sequential") return;
+      if (!DRAG.path) return;
       e.preventDefault();
       e.dataTransfer.dropEffect = "move";
       colEl.classList.add("kb-col-over");
