@@ -112,15 +112,19 @@ function buildTasks() {
       return TAG_ALIASES[raw] ?? raw;
     });
     const domainTags = allTags.filter(t => DOMAIN_IDS.includes(t));
+    // project-priority: P1=highest → invert to badge scale where 5=highest
+    const rawPri   = typeof p["project-priority"] === "number" ? p["project-priority"] : 0;
+    const priority = rawPri > 0 ? (6 - rawPri) : 0;
+
     return {
       path:     p.file.path,
-      title:    p.title || p.file.name,
+      title:    p["project-title"] || p.file.name,
       status:   STATE.ov[p.file.path] ?? p.status ?? "backlog",
-      priority: typeof p.priority === "number" ? p.priority : null,
+      priority,
       order:    STATE.orderOv[p.file.path] ?? (typeof p.order === "number" ? p.order : i),
       domainTags,
-      ctime:    p.file.ctime ?? null,   // Luxon DateTime from DataviewJS
-      due:      p.due       ?? null,    // Luxon DateTime if ISO date in frontmatter
+      ctime:    p.file.ctime ?? null,
+      due:      p.due        ?? null,
     };
   });
 }

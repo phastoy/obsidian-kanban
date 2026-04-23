@@ -1,6 +1,6 @@
 <%*
 const title = await tp.system.prompt("Project name");
-const shortTitle = await tp.system.prompt("Short Kanban title (~40 chars)", title);
+const shortTitle = await tp.system.prompt("Kanban card title (~40 chars)", title);
 const tag = await tp.system.prompt("Primary tag (e.g. #iris, #aperimail)");
 const upLink = await tp.system.prompt("Parent MOC (e.g. ▼ MOC - IRIS)");
 const domain = await tp.system.prompt("Domain tag (p/biz/boss/wop/wpjt/career)", "wpjt");
@@ -10,7 +10,7 @@ await tp.file.rename("(PJ) " + title);
 -%>
 ---
 up: "[[<% upLink %>]]"
-title: "<% shortTitle %>"
+project-title: "<% shortTitle %>"
 tags:
   - project
   - <% domain %>
