@@ -134,8 +134,9 @@ function buildTasks() {
       path:     p.file.path,
       title:    p["project-title"] || p.file.name,
       status:   STATE.ov[p.file.path] ?? p.status ?? "backlog",
-      priority: p["project-priority"] === true,
-      order:    STATE.orderOv[p.file.path] ?? (typeof p.order === "number" ? p.order : i),
+      priority:   p["project-priority"] === true,
+      order:      STATE.orderOv[p.file.path] ?? (typeof p.order === "number" ? p.order : i),
+      projectTag: p["project-tag"] ? String(p["project-tag"]).replace(/^#/, "") : null,
       domainTags,
       ctime:    p.file.ctime ?? null,
       due:      p.due        ?? null,
@@ -352,9 +353,8 @@ function renderCard(cardList, task, idx, colLength) {
     badge.style.background = "#FF7881";
   }
 
-  if (task.domainTags.length > 0) {
-    const tagWrap = top.createEl("div", { cls: "kb-tags" });
-    task.domainTags.forEach(tag => tagWrap.createEl("span", { cls: "kb-tag", text: `#${tag}` }));
+  if (task.projectTag) {
+    top.createEl("span", { cls: "kb-tag", text: `#${task.projectTag}` });
   }
 
   const moveWrap = top.createEl("div", { cls: "kb-move" });
