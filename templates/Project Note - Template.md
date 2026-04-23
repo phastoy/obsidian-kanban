@@ -4,7 +4,7 @@ const shortTitle = await tp.system.prompt("Kanban card title (~40 chars)", title
 const tag = await tp.system.prompt("Primary tag (e.g. #iris, #aperimail)");
 const upLink = await tp.system.prompt("Parent MOC (e.g. ▼ MOC - IRIS)");
 const domain = await tp.system.prompt("Domain tag (p/biz/boss/wop/wpjt/career)", "wpjt");
-const priority = await tp.system.prompt("Priority (0=none 1=lowest…5=highest)", "0");
+const priority = await tp.system.prompt("Priority? (true/false)", "false");
 const due = await tp.system.prompt("Due date (YYYY-MM-DD, blank if none)", "");
 await tp.file.rename("(PJ) " + title);
 -%>

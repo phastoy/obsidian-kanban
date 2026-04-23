@@ -29,10 +29,6 @@ const DOMAINS = [
   { id: "career", label: "Career"        },
 ];
 
-// ── Priority labels & colours ─────────────────────────────────────────────────
-const P_LABEL = ["", "Lowest", "Low", "Medium", "High", "Highest"];
-const P_COLOR = ["", "#89BDF4", "#89BDF4", "#FFE88B", "#FF7881", "#FF7881"];
-
 // ── Date filter options ───────────────────────────────────────────────────────
 const CREATED_OPTIONS = [
   { id: "all", label: "All"  },
@@ -112,15 +108,11 @@ function buildTasks() {
       return TAG_ALIASES[raw] ?? raw;
     });
     const domainTags = allTags.filter(t => DOMAIN_IDS.includes(t));
-    // project-priority: P1=highest → invert to badge scale where 5=highest
-    const rawPri   = typeof p["project-priority"] === "number" ? p["project-priority"] : 0;
-    const priority = rawPri > 0 ? (6 - rawPri) : 0;
-
     return {
       path:     p.file.path,
       title:    p["project-title"] || p.file.name,
       status:   STATE.ov[p.file.path] ?? p.status ?? "backlog",
-      priority,
+      priority: p["project-priority"] === true,
       order:    STATE.orderOv[p.file.path] ?? (typeof p.order === "number" ? p.order : i),
       domainTags,
       ctime:    p.file.ctime ?? null,
@@ -231,7 +223,7 @@ function renderCard(cardList, task, idx, colLength) {
   const now     = dv.luxon.DateTime.now();
   const isBlocked   = task.status === "blocked";
   const dueThisWeek = task.due && task.due >= now.startOf("day") && task.due <= now.endOf("week");
-  const isUrgent    = !isBlocked && dueThisWeek && task.priority >= 4;
+  const isUrgent    = !isBlocked && dueThisWeek && task.priority === true;
 
   let cls = "kb-card";
   if (isBlocked) cls += " kb-card-blocked";
@@ -255,10 +247,10 @@ function renderCard(cardList, task, idx, colLength) {
 
   const top = card.createEl("div", { cls: "kb-top" });
 
-  if (task.priority !== null) {
+  if (task.priority === true) {
     const badge = top.createEl("span", { cls: "kb-badge" });
-    badge.textContent = P_LABEL[task.priority] ?? `P${task.priority}`;
-    badge.style.background = P_COLOR[task.priority] ?? "#707BC2";
+    badge.textContent = "⚡ Priority";
+    badge.style.background = "#FF7881";
   }
 
   if (task.domainTags.length > 0) {
